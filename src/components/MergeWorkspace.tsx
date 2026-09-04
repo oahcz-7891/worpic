@@ -1,16 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import MergePicker from './MergePicker';
 import MergeSettings from './MergeSettings';
 import type { LibraryImage } from '../types';
 import { loadImageFromBlob } from '../utils/crop';
-import { DEFAULT_MERGE_SETTINGS, mergeImages, type MergeSettings as MergeSettingsType } from '../utils/merge';
-import {
-  buildFileName,
-  downloadBlob,
-  getCounter,
-  nextCounter,
-  saveBlobToDirectory,
-} from '../utils/save';
+import { DEFAULT_MERGE_SETTINGS, mergeImagesPaginated, type MergeSettings as MergeSettingsType } from '../utils/merge';
+import { buildFileName, downloadBlob, saveBlobToDirectory } from '../utils/save';
 
 interface Props {
   images: LibraryImage[];
@@ -28,10 +22,12 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
   const [settings, setSettings] = useState<MergeSettingsType>(DEFAULT_MERGE_SETTINGS);
   const [merging, setMerging] = useState(false);
   const [merged, setMerged] = useState(false);
+  /** 合并结果页（每页一张纸） */
+  const [pages, setPages] = useState<HTMLCanvasElement[] | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
-  const mergedCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const toggle = useCallback((id: number) => {
     setSelectedIds((prev) => (
@@ -67,24 +63,21 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
     });
   }, []);
 
-  /** 自动合并：加载所选图片 → 按行列合成到纸张 → 预览 */
+  /** 自动合并：勾选图片按行列分页合成到纸张，支持多页 */
   const handleMerge = async () => {
     if (!selectedIds.length) return;
     setMerging(true);
     setStatus('');
     try {
-      const full = selectedIds
+      const used = selectedIds
         .map((id) => images.find((i) => i.id === id))
         .filter((i): i is LibraryImage => Boolean(i));
-      const used = full.slice(0, settings.rows * settings.cols);
-      if (used.length < full.length) {
-        setStatus(`注意：仅使用前 ${used.length} 张（行列容量 ${settings.rows * settings.cols}）`);
-      }
       const imgs = await Promise.all(used.map((i) => loadImageFromBlob(i.blob)));
-      const canvas = await mergeImages(imgs, settings);
-      mergedCanvasRef.current = canvas;
-      setPreviewUrl(canvas.toDataURL('image/png'));
+      const result = await mergeImagesPaginated(imgs, settings);
+      setPages(result);
+      setPageIndex(0);
       setMerged(true);
+      setStatus(`已合并 ${used.length} 张图片，共 ${result.length} 页`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(`合并失败：${msg}`);
@@ -94,24 +87,39 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
     }
   };
 
-  /** 保存：合并成功后可保存（目录写入或下载） */
+  // 当前翻页对应的预览图
+  useEffect(() => {
+    if (!pages || pages.length === 0) {
+      setPreviewUrl(null);
+      return;
+    }
+    const idx = Math.max(0, Math.min(pageIndex, pages.length - 1));
+    setPreviewUrl(pages[idx].toDataURL('image/png'));
+  }, [pages, pageIndex]);
+
+  const canvasToPng = (canvas: HTMLCanvasElement): Promise<Blob> =>
+    new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('导出失败'))), 'image/png');
+    });
+
+  /** 保存所有页：每页一个文件，序号从 _001 独立开始 */
   const handleSave = async () => {
-    const canvas = mergedCanvasRef.current;
-    if (!canvas) return;
+    if (!pages || pages.length === 0) return;
     setSaving(true);
     try {
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('导出失败'))), 'image/png');
-      });
-      const counter = nextCounter();
-      const name = buildFileName(settings.prefix, counter, 'png');
-      if (dirHandle) {
-        await saveBlobToDirectory(dirHandle, name, blob);
-        setStatus(`已保存 ${name} → ${dirName}`);
-      } else {
-        downloadBlob(blob, name);
-        setStatus(`已下载 ${name}（未选择文件夹）`);
+      const names: string[] = [];
+      for (let i = 0; i < pages.length; i++) {
+        const blob = await canvasToPng(pages[i]);
+        const name = buildFileName(settings.prefix, i + 1, 'png');
+        names.push(name);
+        if (dirHandle) {
+          await saveBlobToDirectory(dirHandle, name, blob);
+        } else {
+          downloadBlob(blob, name);
+        }
       }
+      const dirText = dirHandle ? ` → ${dirName}` : '（未选择文件夹，已下载）';
+      setStatus(`已保存 ${pages.length} 页：${names.join('、')}${dirText}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(`保存失败：${msg}`);
@@ -121,7 +129,8 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
     }
   };
 
-  const nextFileName = buildFileName(settings.prefix, getCounter() + 1, 'png');
+  const nextFileName = buildFileName(settings.prefix, 1, 'png');
+  const perPage = settings.rows * settings.cols;
 
   return (
     <>
@@ -141,7 +150,7 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
         <div className="panel-title-row">
           <h2>合并预览</h2>
           <span className="crop-info">
-            纸张 {settings.width}×{settings.height}px · {settings.rows}×{settings.cols}
+            纸张 {settings.width}×{settings.height}px · 每页 {settings.rows}×{settings.cols} 张
           </span>
         </div>
         <div className="merge-stage">
@@ -153,6 +162,27 @@ export default function MergeWorkspace({ images, dirHandle, dirName, onPickDir, 
             </div>
           )}
         </div>
+        {pages && pages.length > 0 && (
+          <div className="pager-row">
+            <button
+              className="btn btn-sm"
+              disabled={pageIndex === 0}
+              onClick={() => setPageIndex(pageIndex - 1)}
+            >
+              上一页
+            </button>
+            <span className="crop-info">
+              第 {pageIndex + 1} / {pages.length} 页 · 共 {selectedIds.length} 张{selectedIds.length > perPage ? `（自动分页）` : ''}
+            </span>
+            <button
+              className="btn btn-sm"
+              disabled={pageIndex >= pages.length - 1}
+              onClick={() => setPageIndex(pageIndex + 1)}
+            >
+              下一页
+            </button>
+          </div>
+        )}
       </div>
 
       <MergeSettings

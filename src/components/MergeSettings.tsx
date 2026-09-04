@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { PAPER_PRESETS, type MergeSettings } from '../utils/merge';
-import { resetCounter, supportsDirectoryPicker } from '../utils/save';
+import { supportsDirectoryPicker } from '../utils/save';
 
 interface Props {
   settings: MergeSettings;
@@ -42,7 +42,6 @@ export default function MergeSettings({
     <div className="export-panel">
       <div className="panel-title-row">
         <h2>合并设置</h2>
-        <button className="btn btn-ghost btn-sm" onClick={resetCounter}>重置序号</button>
       </div>
 
       <div className="form-grid">
@@ -108,12 +107,42 @@ export default function MergeSettings({
           </Field>
         </div>
 
-        <Field label={`格子间距：${settings.gap}px（图片等比缩放不拉伸）`}>
-          <input
-            type="range" min={0} max={100} step={1}
-            value={settings.gap}
-            onChange={(e) => onChange({ ...settings, gap: Number(e.target.value) })}
-          />
+        <Field label="格子间距(px)">
+          <div className="slider-input-row">
+            <input
+              type="range" min={0} max={100} step={1}
+              value={settings.gap}
+              onChange={(e) => onChange({ ...settings, gap: Number(e.target.value) })}
+            />
+            <input
+              className="zoom-input"
+              type="number" min={0} max={100}
+              value={settings.gap}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isNaN(n)) onChange({ ...settings, gap: Math.max(0, Math.min(100, Math.round(n))) });
+              }}
+            />
+          </div>
+        </Field>
+
+        <Field label="页边距(px)">
+          <div className="slider-input-row">
+            <input
+              type="range" min={0} max={200} step={1}
+              value={settings.margin}
+              onChange={(e) => onChange({ ...settings, margin: Number(e.target.value) })}
+            />
+            <input
+              className="zoom-input"
+              type="number" min={0} max={200}
+              value={settings.margin}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isNaN(n)) onChange({ ...settings, margin: Math.max(0, Math.min(200, Math.round(n))) });
+              }}
+            />
+          </div>
         </Field>
 
         <div className="field-row">

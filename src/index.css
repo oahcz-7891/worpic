@@ -384,6 +384,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 13px;
+  overflow-x: hidden;
 }
 .field {
   display: flex;
@@ -608,6 +609,13 @@ body {
 .seq-title {
   margin-top: 6px;
 }
+.pager-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
 .seq-list {
   display: flex;
   flex-direction: column;
@@ -674,4 +682,23 @@ body {
 }
 .field-row .field {
   flex: 1;
+}
+.slider-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+}
+.slider-input-row input[type="range"] {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  accent-color: var(--text);
+}
+.slider-input-row .zoom-input {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  flex-shrink: 0;
 }

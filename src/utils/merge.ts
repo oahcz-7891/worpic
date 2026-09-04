@@ -13,6 +13,8 @@ export interface MergeSettings {
   cols: number;
   /** 格子间距(px) */
   gap: number;
+  /** 页边距(px)：纸张四周留白 */
+  margin: number;
   bgColor: string;
   prefix: string;
 }
@@ -24,6 +26,7 @@ export const DEFAULT_MERGE_SETTINGS: MergeSettings = {
   rows: 3,
   cols: 2,
   gap: 0,
+  margin: 0,
   bgColor: '#ffffff',
   prefix: 'merged',
 };
@@ -36,29 +39,33 @@ export const MAX_MERGE_IMAGES = 99;
  */
 export async function mergeImages(
   images: HTMLImageElement[],
-  opts: Pick<MergeSettings, 'width' | 'height' | 'rows' | 'cols' | 'gap' | 'bgColor'>,
+  opts: Pick<MergeSettings, 'width' | 'height' | 'rows' | 'cols' | 'gap' | 'margin' | 'bgColor'>,
 ): Promise<HTMLCanvasElement> {
   const { width, height, rows, cols, gap, bgColor } = opts;
+  const margin = Math.max(0, opts.margin || 0);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(width));
   canvas.height = Math.max(1, Math.round(height));
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('无法创建画布');
 
-  // 背景
+  // 背景（含页边距区域）
   ctx.fillStyle = bgColor || '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const cellW = (canvas.width - gap * (cols - 1)) / cols;
-  const cellH = (canvas.height - gap * (rows - 1)) / rows;
+  // 页边距后的可用内容区
+  const availW = Math.max(0, canvas.width - margin * 2);
+  const availH = Math.max(0, canvas.height - margin * 2);
+  const cellW = (availW - gap * (cols - 1)) / cols;
+  const cellH = (availH - gap * (rows - 1)) / rows;
   ctx.imageSmoothingQuality = 'high';
 
   const total = rows * cols;
   images.slice(0, total).forEach((img, i) => {
     const r = Math.floor(i / cols);
     const c = i % cols;
-    const x = c * (cellW + gap);
-    const y = r * (cellH + gap);
+    const x = margin + c * (cellW + gap);
+    const y = margin + r * (cellH + gap);
     // contain：等比缩放，居中
     const s = Math.min(cellW / img.naturalWidth, cellH / img.naturalHeight);
     const dw = img.naturalWidth * s;
@@ -67,4 +74,21 @@ export async function mergeImages(
   });
 
   return canvas;
+}
+
+/**
+ * 自动分页合并：一次能放 row×col 张，多了自动拆成多页，全部图片都参与。
+ * 返回按顺序的页面 canvas 数组。
+ */
+export async function mergeImagesPaginated(
+  images: HTMLImageElement[],
+  opts: Pick<MergeSettings, 'width' | 'height' | 'rows' | 'cols' | 'gap' | 'margin' | 'bgColor'>,
+): Promise<HTMLCanvasElement[]> {
+  if (!images.length) return [];
+  const perPage = Math.max(1, opts.rows * opts.cols);
+  const pages: HTMLCanvasElement[] = [];
+  for (let i = 0; i < images.length; i += perPage) {
+    pages.push(await mergeImages(images.slice(i, i + perPage), opts));
+  }
+  return pages;
 }
