@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UI 样板 · GitHub 风格黑白灰</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f6f8fa;
+    --bg-inset: #eaeef2;
+    --border: #d0d7de;
+    --border-strong: #1f2328;
+    --fg: #1f2328;
+    --fg-muted: #57606a;
+    --fg-subtle: #8c959f;
+    --black: #1f2328;
+    --hover: #f3f4f6;
+    --shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.5;
+  }
+
+  /* ---------- Header ---------- */
+  .page-header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .page-header h1 { font-size: 16px; font-weight: 600; }
+  .page-header .sub { color: var(--fg-muted); font-size: 12px; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: flex; height: calc(100vh - 54px); }
+  .lib-panel {
+    width: 320px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    padding: 16px; overflow: auto;
+  }
+  .main { flex: 1; display: flex; gap: 16px; padding: 16px; overflow: auto; }
+  .crop-panel { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; }
+  .export-panel { width: 320px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 6px; padding: 16px; align-self: flex-start; }
+
+  /* ---------- Panels ---------- */
+  .panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .panel-head h2 { font-size: 14px; font-weight: 600; flex: none; }
+  .panel-head .spacer { flex: 1; }
+  .panel-head .meta { color: var(--fg-muted); font-size: 12px; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--fg);
+    cursor: pointer; text-decoration: none;
+  }
+  .btn:hover { background: var(--hover); }
+  .btn:active { background: var(--bg-inset); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 3px 10px; font-size: 12px; }
+  .btn-block { width: 100%; justify-content: center; padding: 8px; font-weight: 600; }
+  .btn-primary { background: var(--black); border-color: var(--black); color: #fff; }
+  .btn-primary:hover { background: #000; }
+  .btn-subtle { background: transparent; border-color: transparent; color: var(--fg-muted); }
+  .btn-subtle:hover { background: var(--hover); color: var(--fg); }
+
+  /* ---------- Dropzone ---------- */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 6px;
+    padding: 18px 12px; text-align: center; cursor: pointer;
+    color: var(--fg-muted); margin-bottom: 14px;
+  }
+  .dropzone:hover { border-color: var(--fg-subtle); background: var(--bg-subtle); }
+  .dropzone .hint { font-size: 12px; color: var(--fg-subtle); }
+
+  /* ---------- List ---------- */
+  .lib-list { display: flex; flex-direction: column; gap: 6px; }
+  .lib-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+    cursor: pointer;
+  }
+  .lib-item:hover { background: var(--bg-subtle); }
+  .lib-item.selected { border-color: var(--black); background: var(--bg-subtle); box-shadow: inset 0 0 0 1px var(--black); }
+  .lib-thumb {
+    width: 72px; height: 44px; flex-shrink: 0; border-radius: 4px;
+    border: 1px solid var(--border); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: repeating-conic-gradient(var(--bg-inset) 0 25%, #fff 0 50%) 0 0 / 12px 12px;
+    color: var(--fg-subtle); font-size: 10px;
+  }
+  .lib-thumb img, .lib-thumb .ph { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lib-meta { flex: 1; min-width: 0; }
+  .lib-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-size { font-size: 11px; color: var(--fg-subtle); }
+  .lib-del { visibility: hidden; border: none; background: transparent; color: var(--fg-subtle); cursor: pointer; font-size: 13px; padding: 0 2px; }
+  .lib-item:hover .lib-del { visibility: visible; }
+  .lib-del:hover { color: #cf222e; }
+
+  /* ---------- Crop canvas ---------- */
+  .crop-stage {
+    position: relative; flex: 1; min-height: 320px;
+    background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .crop-img {
+    position: absolute; width: 460px; height: 300px; left: 50%; top: 50%;
+    margin-left: -230px; margin-top: -150px;
+    background: repeating-conic-gradient(#fff 0 25%, var(--bg-inset) 0 50%) 0 0 / 16px 16px;
+    border: 1px solid var(--border);
+  }
+  .crop-shade { position: absolute; background: rgba(140, 149, 159, 0.45); }
+  .crop-box {
+    position: absolute; left: 190px; top: 95px; width: 200px; height: 130px;
+    border: 2px solid var(--black); cursor: move;
+  }
+  .crop-handle {
+    position: absolute; width: 10px; height: 10px;
+    background: var(--bg); border: 2px solid var(--black); border-radius: 2px;
+  }
+  .crop-handle.nw { left: -7px; top: -7px; cursor: nwse-resize; }
+  .crop-handle.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+  .crop-handle.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+  .crop-handle.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+
+  /* ---------- Zoom row ---------- */
+  .zoom-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--fg-muted); font-size: 12px; }
+  .zoom-row input[type="range"] { flex: 1; accent-color: var(--black); }
+  .zoom-btn {
+    width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); cursor: pointer; font-size: 13px; line-height: 1; color: var(--fg);
+  }
+  .zoom-btn:hover { background: var(--hover); }
+  .zoom-input { width: 60px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; text-align: right; font-family: var(--mono); }
+
+  .crop-tip { margin-top: 12px; color: var(--fg-muted); font-size: 12px; }
+
+  /* ---------- Form ---------- */
+  .form-grid { display: flex; flex-direction: column; gap: 13px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label, .field > span { font-size: 12px; font-weight: 500; color: var(--fg); }
+  .field input[type="text"], .field input[type="number"], .field select {
+    width: 100%; padding: 5px 10px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 14px; color: var(--fg); background: var(--bg);
+  }
+  .field input:focus, .field select:focus {
+    outline: none; border-color: var(--black);
+    box-shadow: 0 0 0 3px rgba(31, 35, 40, 0.15);
+  }
+  .field input[type="range"] { width: 100%; accent-color: var(--black); }
+
+  /* ---------- Misc ---------- */
+  .code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px 8px;
+  }
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .dir-ok { font-size: 12px; color: var(--fg); }
+  .status { margin-top: 10px; font-size: 12px; color: var(--fg-muted); }
+  .divider { border-top: 1px solid var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+
+  <header class="page-header">
+    <h1>截图裁剪工具</h1>
+    <span class="sub">导入图片 → 按尺寸裁剪 → 保存到文件夹</span>
+  </header>
+
+  <div class="layout">
+
+    <!-- 图片库 -->
+    <aside class="lib-panel">
+      <div class="panel-head">
+        <h2>图片库</h2>
+        <span class="spacer"></span>
+        <button class="btn btn-subtle btn-sm">清空</button>
+      </div>
+
+      <div class="dropzone">
+        <div>点击选择或拖入图片批量导入</div>
+        <div class="hint">支持 jpg / png / webp / gif / bmp</div>
+      </div>
+
+      <div class="lib-list">
+        <div class="lib-item">
+          <div class="lib-thumb"><span class="ph">A</span></div>
+          <div class="lib-meta">
+            <div class="lib-name">app_screenshot_01.png</div>
+            <div class="lib-size">1920 × 1080</div>
+          </div>
+          <button class="lib-del" title="删除">×</button>
+        </div>
+        <div class="lib-item selected">
+          <div class="lib-thumb"><span class="ph">B</span></div>
+          <div class="lib-meta">
+            <div class="lib-name">product_photo.jpg</div>
+            <div class="lib-size">4000 × 3000</div>
+          </div>
+          <button class="lib-del" title="删除">×</button>
+        </div>
+        <div class="lib-item">
+          <div class="lib-thumb"><span class="ph">C</span></div>
+          <div class="lib-meta">
+            <div class="lib-name">banner_dark.webp</div>
+            <div class="lib-size">2560 × 1440</div>
+          </div>
+          <button class="lib-del" title="删除">×</button>
+        </div>
+        <div class="lib-item">
+          <div class="lib-thumb"><span class="ph">D</span></div>
+          <div class="lib-meta">
+            <div class="lib-name">icon_512.png</div>
+            <div class="lib-size">512 × 512</div>
+          </div>
+          <button class="lib-del" title="删除">×</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 裁剪区 -->
+    <main class="main">
+      <section class="crop-panel">
+        <div class="panel-head">
+          <h2>裁剪</h2>
+          <span class="meta">原图 4000×3000 · 目标 4000×3000</span>
+          <span class="spacer"></span>
+          <button class="btn btn-primary btn-sm">取消裁剪</button>
+          <button class="btn btn-subtle btn-sm">重置</button>
+        </div>
+
+        <div class="crop-stage">
+          <div class="crop-img"></div>
+          <!-- 遮罩 -->
+          <div class="crop-shade" style="left:0;top:0;width:100%;height:95px;"></div>
+          <div class="crop-shade" style="left:0;top:225px;width:100%;height:100%;"></div>
+          <div class="crop-shade" style="left:0;top:95px;width:190px;height:130px;"></div>
+          <div class="crop-shade" style="left:390px;top:95px;width:100%;height:130px;"></div>
+          <!-- 裁剪框 -->
+          <div class="crop-box">
+            <div class="crop-handle nw"></div>
+            <div class="crop-handle ne"></div>
+            <div class="crop-handle sw"></div>
+            <div class="crop-handle se"></div>
+          </div>
+        </div>
+
+        <div class="zoom-row">
+          <span>缩放</span>
+          <button class="zoom-btn">−</button>
+          <input type="range" min="20" max="800" step="10" value="100" />
+          <button class="zoom-btn">+</button>
+          <input class="zoom-input" type="number" value="100" /> <span>%</span>
+          <button class="btn btn-subtle btn-sm">复位</button>
+        </div>
+
+        <div class="crop-tip">拖动裁剪框移动位置、四角调整大小；缩放仅放大图片，裁剪框大小不变</div>
+      </section>
+
+      <!-- 导出设置 -->
+      <aside class="export-panel">
+        <div class="panel-head">
+          <h2>导出设置</h2>
+          <button class="btn btn-subtle btn-sm">重置序号</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="row-between">
+            <div class="field" style="flex:1"><span>目标宽度</span>
+              <input type="number" value="4000" />
+            </div>
+            <div class="field" style="flex:1"><span>目标高度</span>
+              <input type="number" value="3000" />
+            </div>
+          </div>
+
+          <div class="field"><span>输出格式</span>
+            <select>
+              <option>PNG（无损，支持透明）</option>
+              <option>JPG（有损，体积小）</option>
+              <option>WebP（现代格式）</option>
+            </select>
+          </div>
+
+          <div class="field"><span>质量</span>
+            <input type="range" min="10" max="100" value="90" />
+          </div>
+
+          <div class="field"><span>文件名前缀</span>
+            <input type="text" value="product_photo" />
+          </div>
+        </div>
+
+        <div class="row-between" style="margin-top:14px;">
+          <span style="font-size:12px;color:var(--fg-muted);">下次导出文件名</span>
+          <span class="code">product_photo_001.png</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row-between">
+          <span class="dir-ok">保存目录：D:\images</span>
+          <span style="display:flex;gap:8px;">
+            <button class="btn btn-sm">更换</button>
+            <button class="btn btn-subtle btn-sm">不使用</button>
+          </span>
+        </div>
+
+        <button class="btn btn-primary btn-block" style="margin-top:16px;">导出图片</button>
+        <div class="status">已保存 product_photo_001.png → D:\images</div>
+      </aside>
+    </main>
+  </div>
+
+</body>
+</html>
