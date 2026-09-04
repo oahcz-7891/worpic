@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';import ImageLibrary from './components/ImageLibrary';
 import CropWorkspace from './components/CropWorkspace';
 import ExportPanel from './components/ExportPanel';
+import MergeWorkspace from './components/MergeWorkspace';
 import { addImageFiles, clearImages, deleteImage, getAllImages } from './db';
 import type { CropAreaPixels, ExportSettings, LibraryImage } from './types';
 import { loadImageFromBlob, cropToBlob } from './utils/crop';
@@ -38,6 +39,7 @@ export default function App() {
   const [dirName, setDirName] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState('');
+  const [mode, setMode] = useState<'crop' | 'merge'>('crop');
   /** 用户是否手动改过文件名前缀（改过则切换图片不再自动覆盖） */
   const prefixTouchedRef = useRef(false);
   /** 用户是否手动改过目标尺寸（改过则切换图片不再自动跟随原图） */
@@ -167,45 +169,75 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div className="header-title">截图裁剪工具</div>
-        <div className="header-sub">导入图片 → 按尺寸裁剪 → 保存到文件夹</div>
+        <div className="header-sub">导入图片 → 裁剪 / 合并 → 保存到文件夹</div>
+        <div className="mode-tabs">
+          <button
+            className={`mode-tab${mode === 'crop' ? ' active' : ''}`}
+            onClick={() => setMode('crop')}
+          >
+            裁剪
+          </button>
+          <button
+            className={`mode-tab${mode === 'merge' ? ' active' : ''}`}
+            onClick={() => setMode('merge')}
+          >
+            合并
+          </button>
+        </div>
       </header>
 
       <div className="workspace">
-        <ImageLibrary
-          images={images}
-          selectedId={selectedId}
-          onSelect={handleSelect}
-          onDelete={handleDelete}
-          onImport={handleImport}
-          onClear={handleClear}
-        />
-
-        <main className="main">
-          {loading ? (
-            <div className="center-hint">加载图片库…</div>
-          ) : (
-            <CropWorkspace
-              image={selected}
-              width={settings.width}
-              height={settings.height}
-              onCropAreaChange={setCropArea}
+        {mode === 'crop' ? (
+          <>
+            <ImageLibrary
+              images={images}
+              selectedId={selectedId}
+              onSelect={handleSelect}
+              onDelete={handleDelete}
+              onImport={handleImport}
+              onClear={handleClear}
             />
-          )}
-          <ExportPanel
-            settings={settings}
-            onChange={handleSettingsChange}
-            dirName={dirName}
-            onPickDir={handlePickDir}
-            onClearDir={handleClearDir}
-            onExport={handleExport}
-            exporting={exporting}
-            canExport={canExport}
-            nextFileName={nextFileName}
-            status={status}
-            disabledHint={disabledHint}
-            sizeWarning={sizeWarning}
-          />
-        </main>
+
+            <main className="main">
+              {loading ? (
+                <div className="center-hint">加载图片库…</div>
+              ) : (
+                <CropWorkspace
+                  image={selected}
+                  width={settings.width}
+                  height={settings.height}
+                  onCropAreaChange={setCropArea}
+                />
+              )}
+              <ExportPanel
+                settings={settings}
+                onChange={handleSettingsChange}
+                dirName={dirName}
+                onPickDir={handlePickDir}
+                onClearDir={handleClearDir}
+                onExport={handleExport}
+                exporting={exporting}
+                canExport={canExport}
+                nextFileName={nextFileName}
+                status={status}
+                disabledHint={disabledHint}
+                sizeWarning={sizeWarning}
+              />
+            </main>
+          </>
+        ) : (
+          <main className="main">
+            <MergeWorkspace
+              images={images}
+              dirHandle={dirHandle}
+              dirName={dirName}
+              onPickDir={handlePickDir}
+              onClearDir={handleClearDir}
+              onImport={handleImport}
+              onClearLibrary={handleClear}
+            />
+          </main>
+        )}
       </div>
     </div>
   );
